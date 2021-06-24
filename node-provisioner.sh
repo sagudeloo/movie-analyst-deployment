@@ -1,3 +1,4 @@
+#/bin/sh
 
 # This funtions check if an application is avaliable in the enviroment
 # and install it if it is not in the enviroment
@@ -7,11 +8,14 @@ function checkAndInstall(){
    fi
 }
 
+# Set debug to look the every command executed in the script
+set -o xtrace
+
 PROJECT_NAME=$(basename $PROJECT_REPO '.git')
 
 # Update machine packages
 sudo apt update 
-sudo apt upgrade -y
+# sudo apt upgrade -y
 
 # Check if nodejs is already installed
 # if it are not installed it will be install
@@ -30,7 +34,7 @@ checkAndInstall nginx
 checkAndInstall git
 
 # Clone de application repositories
-git clone $PROJECT_REPO || (&& git pull origin master ~/$PROJECT_NAME)
+git clone $PROJECT_REPO || (git pull origin master ~/$PROJECT_NAME)
 
 # Installing the application dependencies
 cd ~/$PROJECT_NAME
@@ -50,7 +54,7 @@ else
 fi
 
 # Install and setup pm2 in global enviroment
-sudo npm list -g pm2 || npm install -g pm2@latest
+sudo npm list -g pm2 || sudo npm install -g pm2@latest
 pm2 update
 ls /etc/systemd/system/pm2-vagrant.service || sudo env PATH=$PATH:/usr/bin /usr/local/lib/node_modules/pm2/bin/pm2 startup systemd -u vagrant --hp /home/vagrant
 
@@ -59,3 +63,5 @@ cd ~/$PROJECT_NAME
 pm2 start server.js --name $PROJECT_NAME || echo "Application already running."
 pm2 save
 
+# Unset debug to look the every command executed in the script
+set +o xtrace
