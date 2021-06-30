@@ -13,25 +13,24 @@ Vagrant.configure("2") do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
   config.vm.box = "bento/ubuntu-20.04"
-
-  # Configure UI machine
-  config.vm.define "ui" do |ui|
-    ui.vm.network "private_network", ip: "192.168.10.10"
-    ui.vm.network "forwarded_port", guest: 80, host: 8080
-    ui.vm.synced_folder ".", "/vagrant", disabled: true
-    ui.vm.provider "virtualbox" do |vb|
-      vb.name = "ui"
+  
+  # Configure DB machine
+  config.vm.define "db" do |db|
+    db.vm.network "private_network", ip: "192.168.10.30"
+    db.vm.synced_folder ".", "/vagrant", disabled: true
+    db.vm.provider "virtualbox" do |vb|
+      vb.name = "db"
       vb.memory = "1024"
       vb.cpus = 1
     end
-    ui.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
-    ui.vm.provision "shell" do |s|
-      s.path = "./node-provisioner.sh"
-      s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-ui.git", "PORT" => "3000", "BACK_HOST" => "192.168.10.20" }  
+    db.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
+    db.vm.provision "shell" do |s|
+      s.path = "./db-provisioner.sh"
+      s.env = { "MYSQL_PASSWORD" => "password", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}      
       s.privileged = false
     end
   end
-
+ 
   # Configure API machine
   config.vm.define "api" do |api|
     api.vm.network "private_network", ip: "192.168.10.20"
@@ -45,20 +44,28 @@ Vagrant.configure("2") do |config|
     api.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
     api.vm.provision "shell" do |s|
       s.path = "./node-provisioner.sh"
-      s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-api.git", "PORT" => "3000" }      
+      s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-api.git", "PORT" => "3000", "DB_HOST" => "192.168.10.30", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}
       s.privileged = false
     end
   end
-
-  # Configure DB machine
-  # config.vm.define "db" do |db|
-  #   db.vm.network "private_network", ip: "192.168.10.30"
-  #   db.vm.provider "virtualbox" do |vb|
-  #     vb.name = "db"
-  #     vb.memory = "1024"
-  #     vb.cpus = 1
-  #   end
-  # end
+  
+  # Configure UI machine
+  config.vm.define "ui" do |ui|
+    ui.vm.network "private_network", ip: "192.168.10.10"
+    ui.vm.network "forwarded_port", guest: 80, host: 8080
+    ui.vm.synced_folder ".", "/vagrant", disabled: true
+    ui.vm.provider "virtualbox" do |vb|
+      vb.name = "ui"
+      vb.memory = "1024"
+      vb.cpus = 1
+    end
+    ui.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
+    ui.vm.provision "shell" do |s|
+      s.path = "./node-provisioner.sh"
+      s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-ui.git", "PORT" => "3000", "BACK_HOST" => "192.168.10.20"}  
+      s.privileged = false
+    end
+  end
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs

@@ -15,7 +15,7 @@ PROJECT_NAME=$(basename $PROJECT_REPO '.git')
 
 # Update machine packages
 sudo apt update 
-# sudo apt upgrade -y
+sudo apt upgrade -y
 
 # Check if nodejs is already installed
 # if it are not installed it will be install
