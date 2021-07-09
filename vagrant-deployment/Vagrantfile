@@ -26,7 +26,7 @@ Vagrant.configure("2") do |config|
     end
     db.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
     db.vm.provision "shell" do |s|
-      s.path = "./db-provisioner.sh"
+      s.path = "./scripts/db-provisioner.sh"
       s.env = { "MYSQL_PASSWORD" => "password", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}      
       s.privileged = false
     end
@@ -44,12 +44,12 @@ Vagrant.configure("2") do |config|
     end
     api.vm.provision "file", source: "./data/default", destination: "$HOME/nginx-config/"
     api.vm.provision "shell" do |s|
-      s.path = "./node-provisioner.sh"
+      s.path = "./scripts/node-provisioner.sh"
       s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-api.git", "PORT" => "3000", "DB_HOST" => "192.168.10.30", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}
       s.privileged = false
     end
     api.vm.provision "shell" do |s|
-      s.path = "./db-migrator.sh"
+      s.path = "./scripts/db-migrator.sh"
       s.env = { "DB_HOST" => "192.168.10.30", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}
       s.privileged = false
     end
