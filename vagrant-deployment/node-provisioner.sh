@@ -4,7 +4,7 @@
 # and install it if it is not in the enviroment
 function checkAndInstall(){
    if ! which $1 > /dev/null; then
-      sudo apt install $1 -y
+      sudo apt install -y $1
    fi
 }
 

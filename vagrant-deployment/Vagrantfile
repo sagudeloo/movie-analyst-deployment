@@ -17,6 +17,7 @@ Vagrant.configure("2") do |config|
   # Configure DB machine
   config.vm.define "db" do |db|
     db.vm.network "private_network", ip: "192.168.10.30"
+    db.vm.network "forwarded_port", guest: 3306, host: 3306
     db.vm.synced_folder ".", "/vagrant", disabled: true
     db.vm.provider "virtualbox" do |vb|
       vb.name = "db"
@@ -45,6 +46,11 @@ Vagrant.configure("2") do |config|
     api.vm.provision "shell" do |s|
       s.path = "./node-provisioner.sh"
       s.env = { "PROJECT_REPO" => "https://github.com/sagudeloo/movie-analyst-api.git", "PORT" => "3000", "DB_HOST" => "192.168.10.30", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}
+      s.privileged = false
+    end
+    api.vm.provision "shell" do |s|
+      s.path = "./db-migrator.sh"
+      s.env = { "DB_HOST" => "192.168.10.30", "DB_NAME" => "movie_db", "DB_USER" => "applicationuser", "DB_PASS" => "applicationpass"}
       s.privileged = false
     end
   end
