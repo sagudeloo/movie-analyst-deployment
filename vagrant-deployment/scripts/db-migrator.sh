@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 
 # This funtions check if an application is avaliable in the enviroment
 # and install it if it is not in the enviroment

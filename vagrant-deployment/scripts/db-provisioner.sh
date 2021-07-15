@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 
 # Set debug to look the every command executed in the script
 set -o xtrace
