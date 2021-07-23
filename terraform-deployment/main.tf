@@ -1,8 +1,14 @@
 terraform {
+
   required_providers {
     aws = {
       source = "hashicorp/aws"
       version = "~> 3.42"
+    }
+
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+      version = "~> 2.10.1"
     }
   }
 
@@ -13,6 +19,19 @@ provider "aws" {
   profile = "default"
   region = "us-west-1"
 }
+
+provider "digitalocean" {
+  token = var.DO_PAT
+}
+
+locals {
+  common_tags = {
+    project = var.project
+    responsible = var.responsible
+  }
+}
+
+# AMI
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -30,6 +49,8 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
+# Security groups
+
 resource "aws_security_group" "web_service_sg" {
   name = "web_service_sg"
   vpc_id = var.vpc_id
@@ -42,11 +63,12 @@ resource "aws_security_group" "web_service_sg" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  tags = {
-    Name = "web_service_sg"
-    project = var.project
-    responsible = var.responsible
-  }
+  tags = merge(
+    {
+      Name = "web_service_sg"
+    },
+    local.common_tags
+  )
 }
 
 resource "aws_security_group_rule" "web_service_sg_rule" {
@@ -71,8 +93,8 @@ resource "aws_security_group" "movie_analyst_lb_sg" {
   }
 
   ingress {
-    from_port = 8080
-    to_port = 8080
+    from_port = 443
+    to_port = 443
     protocol = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
@@ -86,146 +108,148 @@ resource "aws_security_group" "movie_analyst_lb_sg" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  tags = {
-    Name = "movie_analyst_lb_sg"
-    project = var.project
-    responsible = var.responsible
-  }
+  tags = merge(
+    {
+      Name = "movie_analyst_lb_sg"
+    },
+    local.common_tags
+  )
 }
 
-resource "aws_lb" "movie_analyst_lb" {
-  name = "movie-analyst-front-lb"
+resource "aws_security_group_rule" "movie_analyst_lb_sg_rule" {
+  security_group_id = aws_security_group.movie_analyst_lb_sg.id
+  type = "ingress"
+  from_port = 8080
+  to_port = 8080
+  protocol = "tcp"
+  # source_security_group_id = aws_security_group.web_service_sg.id
+  cidr_blocks      = ["0.0.0.0/0"]
+  ipv6_cidr_blocks = ["::/0"]
+}
+
+# Load balancer
+
+module "alb" {
+  source  = "terraform-aws-modules/alb/aws"
+  version = "6.3.0"
+
+  name = "movie-analyst-lb"
   internal = false
   load_balancer_type = "application"
-  security_groups = [aws_security_group.movie_analyst_lb_sg.id]
+  vpc_id = var.vpc_id
   subnets = var.public_subnets_id
+  security_groups = [aws_security_group.movie_analyst_lb_sg.id]
 
-  tags = {
-    Name = "movie_analyst_front_lb"
-    project = var.project
-    responsible = var.responsible
-  }
+  target_groups = [
+    {
+      name = "movie-analyst-ui-tg"
+      backend_port = 80
+      backend_protocol  = "HTTP"
+    },
+    {
+      name = "movie-analyst-api-tg"
+      backend_port = 80
+      backend_protocol  = "HTTP"
+    }
+  ]
+
+  https_listeners = [
+    {
+      port               = 443
+      protocol           = "HTTPS"
+      certificate_arn    = var.domain_certificate
+      target_group_index = 0
+    }
+  ]
+
+  http_tcp_listeners = [
+    {
+      port               = 80
+      protocol           = "HTTP"
+      action_type = "redirect"
+      redirect = {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    },
+    {
+      port               = 8080
+      protocol           = "HTTP"
+      target_group_index = 1
+    }
+  ]
+
+  tags = merge(
+    {
+      Name = "movie_analyst_front_lb"
+    },
+    local.common_tags
+  )
+  
 }
 
-resource "aws_lb_listener" "movie_analyst_ui_lb_ls" {
-  load_balancer_arn = aws_lb.movie_analyst_lb.arn
-  port = 80
-  protocol = "HTTP"
+# UI userd_data template
 
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.movie_analyst_ui.arn
-  }
+module "ui_provisioner" {
+  source = "./modules/shellscript-template"
 
-  tags = {
-    Name = "movie_analyst_ui_lb_ls"
-    project = var.project
-    responsible = var.responsible
-  }
-}
-
-resource "aws_lb_listener" "movie_analyst_api_lb_ls" {
-  load_balancer_arn = aws_lb.movie_analyst_lb.arn
-  port = 8080
-  protocol = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.movie_analyst_api.arn
-  }
-
-  tags = {
-    Name = "movie_analyst_api_lb_ls"
-    project = var.project
-    responsible = var.responsible
-  }
-}
-
-resource "aws_lb_target_group" "movie_analyst_ui" {
-  name = "movie-analyst-ui-tg"
-  port = 80
-  protocol = "HTTP"
-  vpc_id = var.vpc_id
-
-  tags = {
-    Name = "movie_analyst_ui_tg"
-    project = var.project
-    responsible = var.responsible
-  }
-}
-
-resource "aws_lb_target_group_attachment" "movie_analyst_ui" {
-  target_group_arn = aws_lb_target_group.movie_analyst_ui.arn
-  target_id = aws_instance.movie_analyst_ui_server.id
-  port = 80
-}
-
-resource "aws_lb_target_group" "movie_analyst_api" {
-  name = "movie-analyst-api-tg"
-  port = 80
-  protocol = "HTTP"
-  vpc_id = var.vpc_id
-
-  tags = {
-    Name = "movie_analyst_api_tg"
-    project = var.project
-    responsible = var.responsible
-  }
-}
-
-resource "aws_lb_target_group_attachment" "movie_analyst_api" {
-  target_group_arn = aws_lb_target_group.movie_analyst_api.arn
-  target_id = aws_instance.movie_analyst_api_server.id
-  port = 80
-}
-
-data "template_file" "ui_provisioner" {
-
-  template = file("./scripts/ui-provisioner.tpl")
+  template = "./scripts/ui-provisioner.tpl"
   vars = {
+    port = 80
     project_repo = "https://github.com/sagudeloo/movie-analyst-ui.git"
-    port = "80"
-    back_host = "${aws_lb.movie_analyst_lb.dns_name}:8080"
+    back_host = "${module.alb.lb_dns_name}:8080"
   }
   
 }
 
-data "template_cloudinit_config" "movie_analyst_ui_server_config" {
+# Autoscaling UI
 
-  gzip = false
-  base64_encode = false
+module "ui-asg" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "4.4.0"
+  
+  name = "movie_analyst_ui_server_asg"
 
-  part {
-    content_type = "text/x-shellscript"
-    content = data.template_file.ui_provisioner.rendered
-  }
-}
-
-resource "aws_instance" "movie_analyst_ui_server" {
-  ami = data.aws_ami.ubuntu.id
+  image_id = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  subnet_id = element(var.public_subnets_id, 0)
-  vpc_security_group_ids = [aws_security_group.web_service_sg.id]
-  user_data = data.template_cloudinit_config.movie_analyst_ui_server_config.rendered
-  
-  tags = {
-    Name = "movie_analyst_ui_server"
-    project = var.project
-    responsible = var.responsible
-  }
-  
-  volume_tags = {
-    Name = "movie_analyst_ui_server"
-    project = var.project
-    responsible = var.responsible
-  }
-  
+  security_groups = [ aws_security_group.web_service_sg.id ]
+  user_data = module.ui_provisioner.rendered
+  min_size = 1
+  max_size = 2
+  desired_capacity = 1
+  health_check_grace_period = 300
+  health_check_type = "ELB"
+  vpc_zone_identifier = var.private_subnets_id
+  target_group_arns = [ module.alb.target_group_arns[0] ]
+  use_lc    = true
+  create_lc  = true
+
+  tags = [
+    {
+      key = "Name"
+      value = "movie_analyst_ui_server"
+      propagate_at_launch = true
+    },
+    {
+      key = "project"
+      value = var.project
+      propagate_at_launch = true
+    },
+    {
+      key = "responsible"
+      value = var.responsible
+      propagate_at_launch = true
+    }
+  ]
 }
 
-data "template_file" "api_provisioner" {
+# API user_data template
 
-  template = file("./scripts/api-provisioner.tpl")
-  
+module "api_provisioner" {
+  source = "./modules/shellscript-template"
+
+  template = "./scripts/api-provisioner.tpl"
   vars = {
     project_repo = "https://github.com/juan-ruiz/movie-analyst-api.git"
     port = "80"
@@ -234,36 +258,55 @@ data "template_file" "api_provisioner" {
     db_user = "applicationuser"
     db_pass = "applicationpass"
   }
+  
 }
 
-data "template_cloudinit_config" "movie_analyst_api_server_config" {
+# Autoscaling API
 
-  gzip = false
-  base64_encode = false
-
-  part {
-    content_type = "text/x-shellscript"
-    content = data.template_file.api_provisioner.rendered
-  }
-}
-
-resource "aws_instance" "movie_analyst_api_server" {
-  ami = data.aws_ami.ubuntu.id
+module "api-asg" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "4.4.0"
+  
+  name = "movie_analyst_api_server_asg"
+  propagate_name = true
+  image_id = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  subnet_id = element(var.public_subnets_id, 0)
-  vpc_security_group_ids = [aws_security_group.web_service_sg.id]
-  user_data = data.template_cloudinit_config.movie_analyst_api_server_config.rendered
+  security_groups = [ aws_security_group.web_service_sg.id ]
+  user_data = module.api_provisioner.rendered
+  min_size = 1
+  max_size = 2
+  desired_capacity = 1
+  health_check_grace_period = 300
+  health_check_type = "ELB"
+  vpc_zone_identifier = var.private_subnets_id
+  target_group_arns = [ module.alb.target_group_arns[1] ]
+  use_lc    = true
+  create_lc  = true
 
-  tags = {
-    Name = "movie_analyst_api_server"
-    project = var.project
-    responsible = var.responsible
-  }
+  tags = [
+    {
+      key = "project"
+      value = var.project
+      propagate_at_launch = true
+    },
+    {
+      key = "responsible"
+      value = var.responsible
+      propagate_at_launch = true
+    }
+  ]
+}
 
-  volume_tags = {
-    Name = "movie_analyst_api_server"
-    project = var.project
-    responsible = var.responsible
-  }
 
+# Domain name
+
+resource "digitalocean_domain" "domain" {
+  name = "culea.me"
+}
+
+resource "digitalocean_record" "cname_lb" {
+  domain = digitalocean_domain.domain.name
+  type = "CNAME"
+  name = "${var.project}"
+  value = "${module.alb.lb_dns_name}."
 }

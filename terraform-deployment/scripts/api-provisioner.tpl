@@ -30,12 +30,6 @@ if ! which npm > /dev/null; then
    apt install -y npm
 fi
 
-# # Check if nginx is already installed
-# # if it are not installed it will be install
-# if ! which nginx > /dev/null; then
-#    apt install -y nginx
-# fi
-
 # Check if git is already installed
 # if it are not installed it will be install
 if ! which git > /dev/null; then
@@ -47,18 +41,6 @@ git clone $PROJECT_REPO ~/$PROJECT_NAME || (git pull origin master ~/$PROJECT_NA
 
 # Installing the application dependencies
 npm install ~/$PROJECT_NAME
-
-# # Nginx configuration
-# if ! cmp --silent ~/nginx-config/default /etc/nginx/sites-available/default ; then
-#    mv -f ~/nginx-config/default /etc/nginx/sites-available/
-# fi
-
-# # Start up or reload nginx
-# if systemctl is-active --quiet nginx ; then
-#    systemctl reload nginx
-# else
-#    systemctl enable --now nginx
-# fi
 
 # Install and setup pm2 in global enviroment
 npm list -g pm2 || npm install -g pm2@latest

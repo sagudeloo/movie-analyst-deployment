@@ -23,6 +23,10 @@ variable "private_subnets_id" {
  description = "Private subnet id in the vpc"
 }
 
+# variable "name" {
+#   type = string
+#   description = "name"
+# }
 
 variable "responsible" {
   type = string
@@ -33,3 +37,10 @@ variable "project" {
   type = string
   description = "Project name"
 }
+
+variable "domain_certificate" {
+  type = string
+  description = "Certificate to load balancer domain"
+}
+
+variable "DO_PAT" {}

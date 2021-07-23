@@ -1,1 +1,3 @@
 .vagrant
+terraform-deployment/.terraform*
+terraform-deployment/terraform.tfstate*
