@@ -1,13 +1,19 @@
 terraform {
 
+  backend "s3" {
+    bucket = "ramp-up-devops-psl"
+    key    = "stiven.agudeloo/terraform.tfstate"
+    region = "us-west-1"
+  }
+
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "~> 3.42"
     }
 
     digitalocean = {
-      source = "digitalocean/digitalocean"
+      source  = "digitalocean/digitalocean"
       version = "~> 2.10.1"
     }
   }
@@ -17,7 +23,7 @@ terraform {
 
 provider "aws" {
   profile = "default"
-  region = "us-west-1"
+  region  = "us-west-1"
 }
 
 provider "digitalocean" {
@@ -26,7 +32,7 @@ provider "digitalocean" {
 
 locals {
   common_tags = {
-    project = var.project
+    project     = var.project
     responsible = var.responsible
   }
 }
@@ -52,7 +58,7 @@ data "aws_ami" "ubuntu" {
 # Security groups
 
 resource "aws_security_group" "web_service_sg" {
-  name = "web_service_sg"
+  name   = "web_service_sg"
   vpc_id = var.vpc_id
 
   egress {
@@ -72,30 +78,30 @@ resource "aws_security_group" "web_service_sg" {
 }
 
 resource "aws_security_group_rule" "web_service_sg_rule" {
-  security_group_id = aws_security_group.web_service_sg.id
-  type = "ingress"
-  from_port = 80
-  to_port = 80
-  protocol = "tcp"
+  security_group_id        = aws_security_group.web_service_sg.id
+  type                     = "ingress"
+  from_port                = 80
+  to_port                  = 80
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.movie_analyst_lb_sg.id
 }
 
 resource "aws_security_group" "movie_analyst_lb_sg" {
-  name = "movie_analyst_lb_sg"
+  name   = "movie_analyst_lb_sg"
   vpc_id = var.vpc_id
 
   ingress {
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
 
   ingress {
-    from_port = 443
-    to_port = 443
-    protocol = "tcp"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
@@ -118,10 +124,10 @@ resource "aws_security_group" "movie_analyst_lb_sg" {
 
 resource "aws_security_group_rule" "movie_analyst_lb_sg_rule" {
   security_group_id = aws_security_group.movie_analyst_lb_sg.id
-  type = "ingress"
-  from_port = 8080
-  to_port = 8080
-  protocol = "tcp"
+  type              = "ingress"
+  from_port         = 8080
+  to_port           = 8080
+  protocol          = "tcp"
   # source_security_group_id = aws_security_group.web_service_sg.id
   cidr_blocks      = ["0.0.0.0/0"]
   ipv6_cidr_blocks = ["::/0"]
@@ -133,23 +139,23 @@ module "alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "6.3.0"
 
-  name = "movie-analyst-lb"
-  internal = false
+  name               = "movie-analyst-lb"
+  internal           = false
   load_balancer_type = "application"
-  vpc_id = var.vpc_id
-  subnets = var.public_subnets_id
-  security_groups = [aws_security_group.movie_analyst_lb_sg.id]
+  vpc_id             = var.vpc_id
+  subnets            = var.public_subnets_id
+  security_groups    = [aws_security_group.movie_analyst_lb_sg.id]
 
   target_groups = [
     {
-      name = "movie-analyst-ui-tg"
-      backend_port = 80
-      backend_protocol  = "HTTP"
+      name             = "movie-analyst-ui-tg"
+      backend_port     = 80
+      backend_protocol = "HTTP"
     },
     {
-      name = "movie-analyst-api-tg"
-      backend_port = 80
-      backend_protocol  = "HTTP"
+      name             = "movie-analyst-api-tg"
+      backend_port     = 80
+      backend_protocol = "HTTP"
     }
   ]
 
@@ -164,8 +170,8 @@ module "alb" {
 
   http_tcp_listeners = [
     {
-      port               = 80
-      protocol           = "HTTP"
+      port        = 80
+      protocol    = "HTTP"
       action_type = "redirect"
       redirect = {
         port        = "443"
@@ -186,117 +192,71 @@ module "alb" {
     },
     local.common_tags
   )
-  
+
 }
 
-# UI userd_data template
+# UI module
 
-module "ui_provisioner" {
-  source = "./modules/shellscript-template"
+module "front" {
+  source = "./modules/web-service"
 
-  template = "./scripts/ui-provisioner.tpl"
-  vars = {
-    port = 80
-    project_repo = "https://github.com/sagudeloo/movie-analyst-ui.git"
-    back_host = "${module.alb.lb_dns_name}:8080"
-  }
-  
-}
-
-# Autoscaling UI
-
-module "ui-asg" {
-  source  = "terraform-aws-modules/autoscaling/aws"
-  version = "4.4.0"
-  
   name = "movie_analyst_ui_server_asg"
 
-  image_id = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
-  security_groups = [ aws_security_group.web_service_sg.id ]
-  user_data = module.ui_provisioner.rendered
-  min_size = 1
-  max_size = 2
-  desired_capacity = 1
-  health_check_grace_period = 300
-  health_check_type = "ELB"
+  image_id            = data.aws_ami.ubuntu.id
+  instance_type       = var.instance_type
+  security_groups     = [aws_security_group.web_service_sg.id]
+  min_size            = 1
+  max_size            = 2
+  desired_capacity    = 1
   vpc_zone_identifier = var.private_subnets_id
-  target_group_arns = [ module.alb.target_group_arns[0] ]
-  use_lc    = true
-  create_lc  = true
-
-  tags = [
-    {
-      key = "Name"
-      value = "movie_analyst_ui_server"
-      propagate_at_launch = true
-    },
-    {
-      key = "project"
-      value = var.project
-      propagate_at_launch = true
-    },
-    {
-      key = "responsible"
-      value = var.responsible
-      propagate_at_launch = true
-    }
-  ]
-}
-
-# API user_data template
-
-module "api_provisioner" {
-  source = "./modules/shellscript-template"
-
-  template = "./scripts/api-provisioner.tpl"
-  vars = {
-    project_repo = "https://github.com/juan-ruiz/movie-analyst-api.git"
-    port = "80"
-    db_host = "192.168.10.30"
-    db_name = "movie_db"
-    db_user = "applicationuser"
-    db_pass = "applicationpass"
+  target_group_arns   = [module.alb.target_group_arns[0]]
+  template            = "./scripts/ui-provisioner.tpl"
+  template_vars = {
+    port         = 80
+    project_repo = "https://github.com/sagudeloo/movie-analyst-ui.git"
+    back_host    = "${module.alb.lb_dns_name}:8080"
   }
-  
-}
 
-# Autoscaling API
-
-module "api-asg" {
-  source  = "terraform-aws-modules/autoscaling/aws"
-  version = "4.4.0"
-  
-  name = "movie_analyst_api_server_asg"
-  propagate_name = true
-  image_id = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
-  security_groups = [ aws_security_group.web_service_sg.id ]
-  user_data = module.api_provisioner.rendered
-  min_size = 1
-  max_size = 2
-  desired_capacity = 1
-  health_check_grace_period = 300
-  health_check_type = "ELB"
-  vpc_zone_identifier = var.private_subnets_id
-  target_group_arns = [ module.alb.target_group_arns[1] ]
-  use_lc    = true
-  create_lc  = true
-
-  tags = [
+  tags = merge(
     {
-      key = "project"
-      value = var.project
-      propagate_at_launch = true
+      Name = "movie_analyst_ui_server"
     },
-    {
-      key = "responsible"
-      value = var.responsible
-      propagate_at_launch = true
-    }
-  ]
+    local.common_tags
+  )
 }
 
+# API module
+
+module "back" {
+  source = "./modules/web-service"
+
+  name = "movie_analyst_api_server_asg"
+
+  image_id            = data.aws_ami.ubuntu.id
+  instance_type       = var.instance_type
+  security_groups     = [aws_security_group.web_service_sg.id]
+  min_size            = 1
+  max_size            = 2
+  desired_capacity    = 1
+  vpc_zone_identifier = var.private_subnets_id
+  target_group_arns   = [module.alb.target_group_arns[1]]
+  template            = "./scripts/api-provisioner.tpl"
+  template_vars = {
+    project_repo = "https://github.com/juan-ruiz/movie-analyst-api.git"
+    port         = "80"
+    db_host      = "192.168.10.30"
+    db_name      = "movie_db"
+    db_user      = "applicationuser"
+    db_pass      = "applicationpass"
+  }
+
+  tags = merge(
+    {
+      Name = "movie_analyst_api_server"
+    },
+    local.common_tags
+  )
+}
 
 # Domain name
 
@@ -306,7 +266,7 @@ resource "digitalocean_domain" "domain" {
 
 resource "digitalocean_record" "cname_lb" {
   domain = digitalocean_domain.domain.name
-  type = "CNAME"
-  name = "${var.project}"
-  value = "${module.alb.lb_dns_name}."
+  type   = "CNAME"
+  name   = var.project
+  value  = "${module.alb.lb_dns_name}."
 }

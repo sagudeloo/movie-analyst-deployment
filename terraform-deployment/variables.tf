@@ -1,5 +1,5 @@
 variable "instance_type" {
-  type = string
+  type        = string
   description = "Instance Type"
 }
 
@@ -9,18 +9,18 @@ variable "instance_type" {
 # }
 
 variable "vpc_id" {
-  type = string
+  type        = string
   description = "VPC id to deploy the infrastructure"
 }
 
 variable "public_subnets_id" {
-  type = list(string)
+  type        = list(string)
   description = "Public subnet id in the vpc"
 }
 
 variable "private_subnets_id" {
- type = list(string)
- description = "Private subnet id in the vpc"
+  type        = list(string)
+  description = "Private subnet id in the vpc"
 }
 
 # variable "name" {
@@ -29,17 +29,17 @@ variable "private_subnets_id" {
 # }
 
 variable "responsible" {
-  type = string
+  type        = string
   description = "Responsible of the deployment"
 }
 
 variable "project" {
-  type = string
+  type        = string
   description = "Project name"
 }
 
 variable "domain_certificate" {
-  type = string
+  type        = string
   description = "Certificate to load balancer domain"
 }
 
