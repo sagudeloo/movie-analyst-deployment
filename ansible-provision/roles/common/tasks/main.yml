@@ -1,2 +1,11 @@
 ---
-# tasks file for common
+- include_tasks: update.yml
+- include_tasks: nodejs.yml
+- include_tasks: npm.yml
+- include_tasks: git.yml
+- include_tasks: clone.yml
+- include_tasks: dependencies.yml
+- include_tasks: pm2.yml
+- include_tasks: startup.yml
+- include_tasks: startapp.yml
+- include_tasks: save.yml
