@@ -1,6 +1,7 @@
 ---
 - name: ui
   hosts: ui
+  become: yes
   roles:
     - role: common
       project_repo: https://github.com/sagudeloo/movie-analyst-ui.git

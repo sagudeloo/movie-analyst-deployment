@@ -1,6 +1,7 @@
 ---
 - name: api
   hosts: api
+  become: yes
   roles:
     - role: common
       project_repo: https://github.com/sagudeloo/movie-analyst-api.git
