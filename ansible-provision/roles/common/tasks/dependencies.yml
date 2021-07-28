@@ -1,0 +1,5 @@
+---
+- name: Install the projects dependencies
+  community.general.npm:
+    path: /tmp/{{ project_name }}
+    production: yes

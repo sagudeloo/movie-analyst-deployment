@@ -1,0 +1,9 @@
+---
+- name: api
+  hosts: api
+  roles:
+    - role: common
+      project_repo: https://github.com/sagudeloo/movie-analyst-api.git
+      project_name: movie-analyst-api
+  environment:
+    port: 80

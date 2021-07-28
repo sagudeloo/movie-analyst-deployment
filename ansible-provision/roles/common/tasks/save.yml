@@ -1,0 +1,4 @@
+---
+- name: Start up configuration pm2
+  command: pm2 save
+  become: yes

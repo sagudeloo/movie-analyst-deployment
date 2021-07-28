@@ -1,0 +1,6 @@
+---
+- name: Install the projects dependencies
+  community.general.npm:
+    name: pm2
+    global: yes
+    
