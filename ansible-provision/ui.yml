@@ -1,7 +1,6 @@
 ---
 - name: ui
   hosts: ui
-  debugger: always
   become: yes
   roles:
     - role: common

@@ -1,3 +1,4 @@
 ---
 - name: Start up configuration pm2
-  command: pm2 start /tmp/{{ project_name }}/server.js --name '{{ project_name }}'
+  command: 'pm2 start /tmp/{{ project_name }}/server.js --name {{ project_name }} || :'
+  ignore_errors: yes

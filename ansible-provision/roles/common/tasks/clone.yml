@@ -1,5 +1,5 @@
 ---
   - name: Clone application repository
-    ansible.buildin.git:
+    git:
       repo: '{{ project_repo }}'
       dest: /tmp/{{ project_name }}
