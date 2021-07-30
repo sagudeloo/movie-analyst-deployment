@@ -7,4 +7,4 @@
       project_repo: https://github.com/juan-ruiz/movie-analyst-api.git
       project_name: movie-analyst-api
   environment:
-    port: 80
+    PORT: 80

@@ -7,5 +7,5 @@
       project_repo: https://github.com/sagudeloo/movie-analyst-ui.git
       project_name: movie-analyst-ui
   environment:
-    port: 80
-    back_host: http://ramp-up-devops.culea.me:8080/
+    PORT: 80
+    BACK_HOST: http://ramp-up-devops.culea.me:8080/
