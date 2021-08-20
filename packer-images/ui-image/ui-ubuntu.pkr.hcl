@@ -42,7 +42,7 @@ build {
   ]
 
   provisioner "ansible" {
-    playbook_file = "../ansible-provision/ui.yml"
-    galaxy_file   = "../ansible-provision/requirements.yml"
+    playbook_file = "../../ansible-provision/ui.yml"
+    galaxy_file   = "../../ansible-provision/requirements.yml"
   }
 }
