@@ -9,6 +9,7 @@ pipeline{
         stage("build"){
             steps{
                 sh """
+                cd packer-images/ui-image/
                 packer build ui-ubuntu.pkr.hcl
                 """
             }
